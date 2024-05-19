@@ -1,0 +1,251 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        td {
+            padding: 5px;
+        }
+
+        button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <label id="error" />
+    <div>
+
+        <input type="hidden" id="userId" />
+        <p>
+            Фамилия:<br />
+            <input id="lastName" />
+        </p>
+        <p>
+            Имя:<br />
+            <input id="firstName" />
+        </p>
+        <p>
+            Отчество:<br />
+            <input id="patronymic" />
+        </p>
+        <p>
+            Дата рождения:<br />
+            <input id="birthDate" type="date" />
+        </p>
+        <p>
+            Место работы:<br />
+            <input id="job" />
+        </p>
+        <h4>Информация о картах</h4>
+        <table id="tableId">
+            <thead>
+                <tr><th>Номер карты</th><th>Владелец</th><th>Срок действия</th><th>CVC</th></tr>
+            </thead>
+            <tbody id="bodyId">
+            </tbody>
+        </table>
+        <p>
+            <button id="addCardBtn">Добавить карту</button>
+        </p>
+        <p>
+            <button id="saveBtn">Сохранить</button>
+            <button id="backBtn">Назад</button>
+        </p>
+    </div>
+
+
+    <script>
+
+
+        // Получение одного пользователя
+        async function getUser() {
+            let result = new URL(location.href).searchParams.get("id");
+            if (result != undefined) {
+                const response = await fetch(`http://localhost/GetUser?id=${result}`, {
+                    method: "GET",
+                    headers: { "Accept": "application/json" }
+                });
+                if (response.ok === true) {
+                    const responseData = await response.json();
+                    if (responseData.status === true) {
+                        const user = responseData.data;
+                        document.getElementById("userId").value = user.id;
+                        document.getElementById("lastName").value = user.lastName;
+                        document.getElementById("firstName").value = user.firstName;
+                        document.getElementById("patronymic").value = user.patronymic;
+                        document.getElementById("birthDate").value = user.birthDate.split('T')[0];
+                        document.getElementById("job").value = user.job;
+
+                        const rows = document.querySelector("tbody");
+                        // добавляем полученные элементы в таблицу
+                        responseData.data.cards.forEach(card => rows.append(newRow(card)));
+
+                    }
+                    else {
+                        document.getElementById("error").innerHTML = responseData.description;
+                        setTimeout(() => {
+                            window.location.href = `Index.html`;
+                        }, 2000);
+                    }
+                }
+                else {
+                    // если произошла ошибка, получаем сообщение об ошибке
+                    const error = await response.json();
+                    console.log(error.message); // и выводим его на консоль
+                }
+            }
+        }
+
+        // Добавление пользователя
+        async function createUser(lastName, firstName, patronymic, birthDate, job, cards) {
+            const response = await fetch("http://localhost/createuser", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    lastName: lastName,
+                    firstName: firstName,
+                    patronymic: patronymic,
+                    birthDate: birthDate,
+                    job: job,
+                    cards: cards
+                })
+            });
+
+            if (response.ok === true) {
+                const responseData = await response.json();
+                document.getElementById("error").innerHTML = responseData.description;
+                setTimeout(() => {
+                    window.location.href = `Index.html`;
+                }, 2000);
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        // Изменение пользователя
+        async function updateUser(userId, lastName, firstName, patronymic, birthDate, job, cards) {
+            const response = await fetch("http://localhost/updateuser", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(userId),
+                    lastName: lastName,
+                    firstName: firstName,
+                    patronymic: patronymic,
+                    birthDate: birthDate,
+                    job: job,
+                    cards: cards
+                })
+            });
+
+            if (response.ok === true) {
+                const responseData = await response.json();
+
+                document.getElementById("error").innerHTML = responseData.description;
+
+                setTimeout(() => {
+                    window.location.href = `Index.html`;
+                }, 2000);
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        //добавление карты
+        document.getElementById("addCardBtn").addEventListener("click", async () => {
+            const card = {
+                id: 0,
+                number: "",
+                fullName: "",
+                expDate: "",
+                cvc: ""
+            }
+            const rows = document.querySelector("tbody");
+            rows.append(newRow(card));
+        });
+
+        // отправка формы
+        document.getElementById("saveBtn").addEventListener("click", async () => {
+            var body = document.getElementById("bodyId");
+            var card = [];
+            for (var i = 0, row; row = body.rows[i]; i++) {
+
+                card.push({
+                    id: parseInt(row.getAttribute("data-rowid")),
+                    number: row.cells[0].children[0].value,
+                    fullName: row.cells[1].children[0].value,
+                    expDate: row.cells[2].children[0].value,
+                    cvc: parseInt(row.cells[3].children[0].value)
+                    /*number: document.getElementById("number" + row.getAttribute("data-rowid")).value,
+                    fullName: document.getElementById("fullName" + row.getAttribute("data-rowid")).value,
+                    expDate: document.getElementById("expDate" + row.getAttribute("data-rowid")).value,
+                    cvc: parseInt(document.getElementById("cvc" + row.getAttribute("data-rowid")).value)*/
+                })
+            }
+            const cards = card;
+            const userId = document.getElementById("userId").value;
+            //const card = document.getElementById("cardId").value;
+            const lastName = document.getElementById("lastName").value;
+            const firstName = document.getElementById("firstName").value;
+            const patronymic = document.getElementById("patronymic").value;
+            const birthDate = document.getElementById("birthDate").value;
+            const job = document.getElementById("job").value;
+            if (userId === "")
+                await createUser(lastName, firstName, patronymic, birthDate, job, cards);
+            else
+                await updateUser(userId, lastName, firstName, patronymic, birthDate, job, cards);
+
+        });
+
+        // создание строки для таблицы
+        function newRow(card) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", card.id);
+
+            const number = document.createElement("td");
+            const numberInput = document.createElement("input");
+            numberInput.setAttribute("id", "number" + card.id);
+            number.append(numberInput);
+            numberInput.value = card.number;
+            tr.append(number);
+
+            const fullName = document.createElement("td");
+            const fullNameInput = document.createElement("input");
+            fullNameInput.setAttribute("id", "fullName" + card.id);
+            fullName.append(fullNameInput);
+            fullNameInput.value = card.fullName;
+            tr.append(fullName);
+
+            const expDate = document.createElement("td");
+            const expDateInput = document.createElement("input");
+            expDateInput.setAttribute("id", "expDate" + card.id);
+            expDate.append(expDateInput);
+            expDateInput.value = card.expDate;
+            tr.append(expDate);
+
+            const cvc = document.createElement("td");
+            const cvcInput = document.createElement("input");
+            cvcInput.setAttribute("id", "cvc" + card.id);
+            cvc.append(cvcInput);
+            cvcInput.value = card.cvc;
+            tr.append(cvc);
+
+            return tr;
+        }
+
+        // отправка формы
+        document.getElementById("backBtn").addEventListener("click", async () => {
+            window.location.href = `Index.html`;
+        });
+
+        // загрузка пользователя
+        getUser();
+    </script>
+</body>
+</html>
